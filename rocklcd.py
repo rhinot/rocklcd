@@ -2,6 +2,7 @@ import I2C_LCD_driver
 import linecache
 import random
 import threading
+import os
 # import keyboard
 from time import *
 
@@ -10,12 +11,6 @@ mylcd = I2C_LCD_driver.lcd()
 
 ################################################
 # Get string - either manual entry or from a file
-#text_string = "Hello World!"
-
-# Pick specific line that is day of year
-# day_of_year = strftime("%j") 
-# text_string = day_of_year + " " + linecache.getline("quotes.txt",day_of_year)
-
 # Random line selection
 def random_line(fname):
     lines = open(fname).read().splitlines()
@@ -24,54 +19,52 @@ text_string = random_line("quotes.txt")
 author_start = str.find(text_string,"-")
 quote = text_string[0:author_start-1]
 author = text_string[author_start:len(text_string)]
+
 ################################################
+# Code to store string in a list of 16 char strings
+# Initialize variables
+index = 0
+pos = 0
 
-# Display author on LCD line 2
-lcd2_string = author
+# Intitialize list based on length of quote
+lcd_seg = len(text_string)/16 + 3  # 1 for remander of quote, 1 for author, 1 for buffer
+# If odd number of lines, add a blank line for ease of reading on a 2 line LCD
+if (lcd_seg % 2 == 1):
+	lcd_seg = lcd_seg + 1
+lcd_str = [" "] * lcd_seg
+print(text_string)
+print(lcd_seg)
 
-# Loop quote on LCD line 1
-str_pad = " " * 16
-lcd1_string = str_pad + quote
+# Cut quote into 16 char segments
+while pos < len(quote) - 1:
+	# If search is out of bounds, set bound at end
+	if (pos + 17 > len(quote)):
+		lcd_str_spl = len(quote)
+	else: 
+		end_pos = pos + 17
+		lcd_str_spl = quote.rfind(" ",pos,end_pos)
+	lcd_str[index] = quote[pos:lcd_str_spl]
+	print(lcd_str[index])
+	print(len(lcd_str[index]))
+	pos = lcd_str_spl + 1
+	index = index + 1	
+
+# Add author
+lcd_str[index] = author
+print(lcd_str[index])
+print(len(lcd_str[index]))
 
 ###############################################
-# Control LCD screens
+# Control LCD screen
 #  
-# LCD screen row 1 (left to right)
-def LCD_row1(lcd1_string):
+def LCD_row(lcd_str):
 	while True:
-    		for i in range (0, len(lcd1_string)):
-        		lcd1_text = lcd1_string[i:(i+16)]
-        		mylcd.lcd_display_string(lcd1_text,1)
-        		sleep(0.1)
-        		mylcd.lcd_display_string(str_pad,1)
+		for i in range (0, len(lcd_str), 2):
+			mylcd.lcd_clear()
+			mylcd.lcd_display_string(lcd_str[i],1)
+			mylcd.lcd_display_string(lcd_str[i+1],2)
+			sleep(2)
 
-# LCD screen row 2 (oscillate)
-def LCD_row2(lcd2_string):
-	mylcd.lcd_display_string("Works",2)
-	if (len(lcd2_string) < 17):
-		mylcd.lcd_display_string(lcd2_string,2)
-	else:
-		while True:
-			for i in range (0, len(lcd2_string)-16):
-				lcd2_text = lcd2_string[i:(i+16)]
-				mylcd.lcd_display_string(lcd2_text,2)
-				sleep(0.5)
-				mylcd.lcd_display_string(str_pad,2)
-			for i in range (len(lcd2_string)-16, 0, -1):
-				lcd2_text = lcd2_string[i:(i+16)]
-				mylcd.lcd_display_string(lcd2_text,2)
-				sleep(0.5)
-				mylcd.lcd_display_string(str_pad,2)
 #################################################
 
-# Thread the screen rows
-thread1 = threading.Thread(target=LCD_row1,args=(lcd1_string,))
-thread1.start()
-
-thread2 = threading.Thread(target=LCD_row2,args=(lcd2_string,))
-thread2.start()
-
-# while keyboard.wait('esc'):
-#	thread1.stop()
-#	thread2.stop()
-
+LCD_row(lcd_str)
